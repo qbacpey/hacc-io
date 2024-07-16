@@ -33,8 +33,15 @@ enum GLEAN_IO_MODE
 enum GLEAN_IO_INTERFACE
 {
     USE_POSIX,
-    USE_MPIIO, // Default
+    USE_SYNC_MPIIO, // Default
+    USE_ASYNC_MPIIO, // Async I/O
     UNDEF_INTERFACE
+};
+
+enum GLEAN_MPIIO_HEADER_INTERFACE
+{
+    USE_SYNC_MPIIO_FOR_HEADER,  // Default
+    USE_ASYNC_MPIIO_FOR_HEADER, // Async I/O
 };
 
 enum GLEAN_POSIX_API
@@ -60,7 +67,7 @@ enum GLEAN_MPIIO_FILE_PTR
 static const int GLEAN_MAX_STRING_LEN           = 8192;
 
 // Set this to 24 MB for now
-static const int64_t FILE_HEADER_SIZE_MAX        = 25165824;
+static const int64_t FILE_HEADER_SIZE_MAX		= 25165824;
 
 static const int HEADER_METAINFO_SIZE          = 16;
 
@@ -70,9 +77,9 @@ class RestartIO_GLEAN
 public:
     
     RestartIO_GLEAN ();
-        
+		
     ~RestartIO_GLEAN ();
-        
+		
     int Initialize (MPI_Comm comm);
 
     int Finalize (void);
@@ -80,9 +87,9 @@ public:
     int CreateCheckpoint (char* path_prefix, int64_t& num_particles);
     
     int64_t OpenRestart (char* pathname);
-    
+	
     int Close (void);
-    
+	
     int Write ( float* xx, float* yy, float* zz,
                 float* vx, float* vy, float* vz,
                 float* phi, int64_t* pid,
@@ -105,12 +112,25 @@ public:
     
     void DisablePreAllocateFile(void);
     
-    void SetMPI_IO_Interface(void);
-    
-    void SetPOSIX_IO_Interface(int val = 0);
+    // read and write 
+    void Set_Sync_MPI_IO_Interface(void);
+    void Set_Async_MPI_IO_Interface(void);
+    void Set_POSIX_IO_Interface(int val = 0);
+   
+    // header write and read modes
+    void Set_Async_MPI_IO_Header(void);
+    void Set_Sync_MPI_IO_Header(void);
+
+    // get methods
+    GLEAN_IO_INTERFACE Get_IO_Interface(void);
     
     void PrintIOCoordInfo (void);
-    
+
+    //! new
+    void test_read(void);
+
+    void test_write(void);
+	
 private:
     
     int __duplicateCommunicator (MPI_Comm comm);
@@ -162,21 +182,26 @@ private:
 
     void __HandleMPIIOError (int errcode, char *str);
     
+    //! new
+    void  __check_read_end(void);
+    
+    void  __check_write_end(void);
 
-private:
-        
+    void __check_valid_read(void); //for async header. verifies the content of the header
+
+		
     MPI_Comm m_globalComm; //  Global Communicator
 
     int m_globalCommSize; // Size of Global Communicator
-        
+		
     int m_globalCommRank; // Rank of Global Communicator
         
     int m_totPartitions; // Divide into partitions and write a file out per partition
     
     int m_partitionID; // 1D Partition ID
-    
+	
     int m_idInPartition; // Rank ID in the given partition
-        
+		
     MPI_Comm m_partitionComm;
 
     int m_partitionSize;
@@ -193,6 +218,7 @@ private:
     
     int64_t m_localParticles;
     
+    
     int64_t m_totPartParticles;
     
     int64_t m_totGlobalParticles;
@@ -200,6 +226,8 @@ private:
     GLEAN_IO_MODE m_mode; // Current Access Mode
     
     GLEAN_IO_INTERFACE m_interface; // Which IO Interface to Use
+
+    GLEAN_MPIIO_HEADER_INTERFACE m_header_mode; // MPIIO header Interface (sync/async) to used for read and write
     
     GLEAN_POSIX_API m_posixAPI;
     
@@ -212,8 +240,6 @@ private:
     int m_posixFD; // POSIX Descriptor
     
     int64_t m_partFileSize; // Valid only on the Part Comm Root
-
-    int64_t m_readSize; // how many bytes were read in
     
     int64_t* m_header;
 
@@ -229,6 +255,66 @@ private:
     int m_preallocFile;
     
    GLEAN_FILE_DISTRIBUTION m_fileDist;
+
+    //! new 
+
+    int64_t m_localParticles_verify; //used for async read header verification
+    int test;
+    int test_xx;
+    int test_yy;
+    int test_zz;
+    int test_vx;
+    int test_vy;
+    int test_vz;
+    int test_phi;
+    int test_pid;
+    int test_mask;
+    int test_header;
+
+
+    // write request need for Async I/O
+    MPI_Request requests_write[9] = {
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL};
+    // MPI_Request request_write_xx     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_yy     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_zz     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_vx     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_vy     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_vz     = MPI_REQUEST_NULL;
+    // MPI_Request request_write_phi    = MPI_REQUEST_NULL;
+    // MPI_Request request_write_pid    = MPI_REQUEST_NULL;
+    // MPI_Request request_write_mask   = MPI_REQUEST_NULL;
+    MPI_Request request_write_header = MPI_REQUEST_NULL;
+
+    MPI_Request requests_read[9] = {
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL,
+        MPI_REQUEST_NULL};
+    // read request need for Async I/O
+    //  MPI_Request request_read_xx     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_yy     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_zz     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_vx     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_vy     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_vz     = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_phi    = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_pid    = MPI_REQUEST_NULL;
+    //  MPI_Request request_read_mask   = MPI_REQUEST_NULL;
+     MPI_Request request_read_header = MPI_REQUEST_NULL;
 
 };
 
