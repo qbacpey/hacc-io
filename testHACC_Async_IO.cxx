@@ -107,8 +107,8 @@ int main(int argc, char *argv[])
     //? set interface for I/O (read & write)
     //? ******************************************
     //rst->Set_POSIX_IO_Interface();
-    rst->Set_Sync_MPI_IO_Interface();
-    //rst->Set_Async_MPI_IO_Interface();
+    // rst->Set_Sync_MPI_IO_Interface();
+    rst->Set_Async_MPI_IO_Interface();
 
     //! sync:  [compute_1][write_1][read_1][verify_1][compute_2][write_2][read_2][verify_2][compute_3][write_3][read_3][verify_3]
     //!
@@ -121,10 +121,10 @@ int main(int argc, char *argv[])
 
     //? set File mode
     //? ******************************************
-    rst->SetMPIIOSharedFilePointer();
-    //rst->SetMPIOIndepFilePointer();
-    rst->SetFileDistribution(GLEAN_SINGLE_FILE);
-    //rst->SetFileDistribution(GLEAN_FILE_PER_RANK);
+    // rst->SetMPIIOSharedFilePointer();
+    rst->SetMPIOIndepFilePointer();
+    // rst->SetFileDistribution(GLEAN_SINGLE_FILE);
+    rst->SetFileDistribution(GLEAN_FILE_PER_RANK);
 
 
 

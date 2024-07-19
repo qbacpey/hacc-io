@@ -4,14 +4,18 @@ HAPP_CPP_HDRS = RestartIO_GLEAN.h
 #---------------------------
 #Compiler Flags
 #---------------------------
+#MPICXX = /usr/bin/mpic++.openmpi
+#MPIRUN = /usr/bin/mpirun.openmpi
+# MPICH
+#MPICXX = /usr/bin/mpicxx.mpich
+#MPIRUN = /usr/bin/mpirun.mpich
 ## default (openMPI)
 MPICXX = mpicxx
 MPIRUN = mpirun
-GIT_REPO = $(shell readlink -f ..)
-CXX_MSGPACK = 
-#MPICXX = $(GIT_REPO)/bw_limit/mpich-4.0.3/mpich-bin/bin/mpicxx
-#MPIRUN = $(GIT_REPO)/bw_limit/mpich-4.0.3/mpich-bin/bin/mpirun
 
+## For bw limit
+MODIFED_MPICXX = /d/git/tarraf/bw_limit/mpich-4.0.3/mpich-bin/bin/mpicxx
+MODIFED_MPIRUN = /d/git/tarraf/bw_limit/mpich-4.0.3/mpich-bin/bin/mpirun
 
 ifeq (${MPICXX},mpicxx)
 else
@@ -19,38 +23,32 @@ $(info $(shell tput setaf 1)MPICXX:${MPICXX}$(shell tput sgr0))
 $(info $(shell tput setaf 1)MPIRUN:${MPIRUN} $(shell tput sgr0))
 endif
 
-## openMPI
-#MPICXX = /usr/bin/mpic++.openmpi
-#MPIRUN = /usr/bin/mpirun.openmpi
-# MPICH
-#MPICXX = /usr/bin/mpicxx.mpich
-#MPIRUN = /usr/bin/mpirun.mpich
 
-#Compiler Flags
+# Compiler Flags
+CXX_MSGPACK = 
 MPI_CFLAGS  = -g -O3 -DGLEAN_PRINT_PERROR -I./ 
 MPI_LDFLAGS = -L. -lstdc++ -lpthread
 MPI_CFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -Wall
-
 CXXFLAGS    = $(MPI_CFLAGS)
 CXX_INCLUDE =
 LDFLAGS     = $(MPI_LDFLAGS)
 override CXX_DEBUG  += 
 
+# Code flags
 PROCS = 8
 N     = 1000000
 MPI_RUN_FLAGS =
 
-# ifeq ($(shell hostname),electric)
 
-# TMIO_REPO= $(GIT_REPO)/tmio
-TMIO_REPO= /d/github/TMIO
-TMIO_INC = $(TMIO_REPO)/include
-TMIO_BLD = $(TMIO_REPO)/build
-TMIO_DEP = $(TMIO_REPO)/dep
+# TMIO Github location and code
+TMIO_REPO = /d/github/TMIO
+TMIO_INC  = $(TMIO_REPO)/include
+TMIO_BLD  = $(TMIO_REPO)/build
+TMIO_DEP  = $(TMIO_REPO)/dep
 LIBRARY_TARGET = library
 
 
-
+## Build modified HACC in different flavors
 all: HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE sim_clean
 
 RestartIO_GLEAN.o:RestartIO_GLEAN.cxx
@@ -62,39 +60,30 @@ testHACC_OPEN_CLOSE.o:testHACC_OPEN_CLOSE.cxx
 testHACC_IO.o:testHACC_IO.cxx
 	$(MPICXX) $(MPI_CFLAGS) -c testHACC_IO.cxx 
 
-#--------------- Added ----------------
 testHACC_Async_IO.o: testHACC_Async_IO.cxx
 	$(MPICXX) $(MPI_CFLAGS) -c testHACC_Async_IO.cxx $(CXX_INCLUDE)  $(CXX_DEBUG)
-#--------------------------------------
-
-#$(HACC_CPP_OBJS): %.o: %.cxx 
-#	$(MPICXX) $(MPI_CFLAGS) $< -c -o $@
 
 HACC_IO_FILES=RestartIO_GLEAN.o testHACC_IO.o
 HACC_IO:$(HACC_IO_FILES)
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_FILES) -o $@ 
 
-#--------------- Added ----------------
 HACC_IO_ASYNC_FILES=RestartIO_GLEAN.o testHACC_Async_IO.o
 HACC_ASYNC_IO:$(HACC_IO_ASYNC_FILES)
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) -o $@  $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
-#--------------------------------------
 
 HACC_OC_FILES=RestartIO_GLEAN.o testHACC_OPEN_CLOSE.o 
 HACC_OPEN_CLOSE: $(HACC_OC_FILES) 
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_OC_FILES) -o $@
 
 
+## Run modified HACC-IO
 run: sim_clean HACC_ASYNC_IO
 	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
+## Run modifed HACC-IO with TMIO
 run_with_lib: sim_clean HACC_ASYNC_IO library
 	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
-
-# -------------------------------------------------------------------
-# shared_lib: library
-# 	mv libtmio.so libtmio.so
 run_msgpack: LIBRARY_TARGET := msgpack_library
 run_msgpack: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG) 
 run_msgpack: CXX_INCLUDE = -I$(TMIO_INC) 
@@ -121,7 +110,22 @@ run_with_include_static: clean library $(HACC_IO_ASYNC_FILES)
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(wildcard $(TMIO_BLD)/tmp/*.o) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
 	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
+## Run HACC-IO with bandwidth limit. This needs modi
+run_limit: override CXX_DEBUG := "-DBW_LIMIT $(CXX_DEBUG)"
+run_limit: override MPICXX := $(MODIFED_MPICXX)
+run_limit: override MPIRUN := $(MODIFED_MPIRUN)
+run_limit: info clean HACC_ASYNC_IO library
+	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
+run_nolimit: override CXX_DEBUG := "-DCUSTOM_MPI $(CXX_DEBUG)"
+run_nolimit: override MPICXX := $(MODIFED_MPICXX)
+run_nolimit: override MPIRUN := $(MODIFED_MPIRUN)
+run_nolimit:info clean HACC_ASYNC_IO library
+	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+
+info:
+	$(info $(shell tput setaf 1)MPICXX:${MPICXX}$(shell tput sgr0))
+	$(info $(shell tput setaf 1)MPIRUN:${MPIRUN} $(shell tput sgr0))
 # -------------------------------------------------------------------
 
 
@@ -134,11 +138,14 @@ sim_clean: test_dir
 
 test_dir:
 	@mkdir -p test_run 2>&1
-#--------------- Added ----------------
-library: $(shell find $(TMIO_REPO)/src -type f) $(shell find $(TMIO_REPO)/include -type f)
+
+library: $(shell find ${TMIO_REPO}/src -type f) $(shell find ${TMIO_REPO}/include -type f)
 	@cd $(TMIO_REPO)/build && make $(LIBRARY_TARGET) CXX_DEBUG+=$(CXX_DEBUG) MPICXX=$(MPICXX) MPIRUN=$(MPIRUN) CXX_INC=$(CXX_MSGPACK)
 	@cp $(TMIO_REPO)/build/libtmio.so . 
 	@echo "library created"
+
+
+
 
 #***************************************
 #! ScoreP
@@ -197,7 +204,7 @@ tau_trace_view:
 
 tau_clean:
 	@rm -rf $(TAU_DIR) profile.*
-#--------------------------------------
+
 
 
 #**************************************
@@ -214,7 +221,7 @@ recorder_clean:
 	@ rm -rf ScoreP_Result* 
 	@ rm -rf recorder-logs 
 
-#--------------------------------------
+
 
 #**************************************
 # strace
@@ -292,7 +299,7 @@ M2: sim_clean HACC_ASYNC_IO
 	
 
 
-#--------------------------------------
+
 clean_ALL: clean sim_clean recorder_clean tau_clean scorep_clean strace_clean darshan_clean
 	@rm -rf *.json *.txt *.data
 	@echo "--- done ---"
