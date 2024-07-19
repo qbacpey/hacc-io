@@ -4,7 +4,7 @@ This project is forked from [Github](https://github.com/glennklockwood/hacc-io?t
 
 It supports asynchronous MPI-IO and executes the code in loops.
 
-The new file `testHACC_Async_IO.cxxtestHACC_Async_IO.cx` contains several options that can be set:
+The new file `testHACC_Async_IO.cxx` contains several options that can be set:
 ```c++
 ⋮
 int runs = 8; // specify the number of iterations
@@ -37,6 +37,9 @@ rst->SetFileDistribution(GLEAN_SINGLE_FILE);
 //rst->SetFileDistribution(GLEAN_FILE_PER_RANK);
 ⋮
 ```
+
+The file `testHACC_Async_IO_bwlimit.cxx` is similar to `testHACC_Async_IO.cxx`, with the difference that it 
+executes a function called `waste_time` to add more variability during the I/O phases. This was used during experiment with TMIO as described [here](https://github.com/tuda-parallel/TMIO/tree/main/artifacts/cluster24#HACC-IO)
 
 ## Running
 

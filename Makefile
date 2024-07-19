@@ -63,6 +63,9 @@ testHACC_IO.o:testHACC_IO.cxx
 testHACC_Async_IO.o: testHACC_Async_IO.cxx
 	$(MPICXX) $(MPI_CFLAGS) -c testHACC_Async_IO.cxx $(CXX_INCLUDE)  $(CXX_DEBUG)
 
+testHACC_Async_IO_bwlimit.o: testHACC_Async_IO.cxx
+	$(MPICXX) $(MPI_CFLAGS) -c testHACC_Async_IO_bwlimit.cxx $(CXX_INCLUDE)  $(CXX_DEBUG)
+
 HACC_IO_FILES=RestartIO_GLEAN.o testHACC_IO.o
 HACC_IO:$(HACC_IO_FILES)
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_FILES) -o $@ 
@@ -70,6 +73,10 @@ HACC_IO:$(HACC_IO_FILES)
 HACC_IO_ASYNC_FILES=RestartIO_GLEAN.o testHACC_Async_IO.o
 HACC_ASYNC_IO:$(HACC_IO_ASYNC_FILES)
 	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) -o $@  $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
+
+HACC_ASYNC_IO_BWLIMIT=RestartIO_GLEAN.o testHACC_Async_IO_bwlimit.o
+HACC_ASYNC_IO_BWLIMIT:$(HACC_ASYNC_IO_BWLIMIT)
+	$(MPICXX) $(MPI_CFLAGS) $(HACC_ASYNC_IO_BWLIMIT) -o $@  $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
 
 HACC_OC_FILES=RestartIO_GLEAN.o testHACC_OPEN_CLOSE.o 
 HACC_OPEN_CLOSE: $(HACC_OC_FILES) 
@@ -114,16 +121,17 @@ run_with_include_static: clean library $(HACC_IO_ASYNC_FILES)
 run_limit: override CXX_DEBUG := "-DBW_LIMIT $(CXX_DEBUG)"
 run_limit: override MPICXX := $(MODIFED_MPICXX)
 run_limit: override MPIRUN := $(MODIFED_MPIRUN)
-run_limit: info clean HACC_ASYNC_IO library
-	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+run_limit: info clean HACC_ASYNC_IO_BWLIMIT library
+	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
 
 run_nolimit: override CXX_DEBUG := "-DCUSTOM_MPI $(CXX_DEBUG)"
 run_nolimit: override MPICXX := $(MODIFED_MPICXX)
 run_nolimit: override MPIRUN := $(MODIFED_MPIRUN)
-run_nolimit:info clean HACC_ASYNC_IO library
-	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+run_nolimit:info clean HACC_ASYNC_IO_BWLIMIT library
+	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
 
 info:
+	$(info $(shell tput setaf 1)HACC: testHACC_Async_IO_bwlimit.cxx $(shell tput sgr0))
 	$(info $(shell tput setaf 1)MPICXX:${MPICXX}$(shell tput sgr0))
 	$(info $(shell tput setaf 1)MPIRUN:${MPIRUN} $(shell tput sgr0))
 # -------------------------------------------------------------------
