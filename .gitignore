@@ -1,3 +1,14 @@
 *.o
 hacc_io
 hacc_open_close
+00_Ref_Output
+01_Restructed_Output
+test_run
+temp.sh
+.vscode
+lib.*so
+*.ansi
+*.ans
+*.so
+*.txt
+*.msgpack

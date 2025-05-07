@@ -116,15 +116,15 @@ int main(int argc, char *argv[])
     //!                           [read_1]    [verify_1][read_2]   [verify_2][read_3][verify_3]
 
     //? set Header mode:
-    rst->Set_Sync_MPI_IO_Header();
-    //rst->Set_Async_MPI_IO_Header();
+    // rst->Set_Sync_MPI_IO_Header();
+    rst->Set_Async_MPI_IO_Header();
 
     //? set File mode
     //? ******************************************
-    // rst->SetMPIIOSharedFilePointer();
-    rst->SetMPIOIndepFilePointer();
-    // rst->SetFileDistribution(GLEAN_SINGLE_FILE);
-    rst->SetFileDistribution(GLEAN_FILE_PER_RANK);
+    rst->SetMPIIOSharedFilePointer();
+    // rst->SetMPIOIndepFilePointer();
+    rst->SetFileDistribution(GLEAN_SINGLE_FILE);
+    // rst->SetFileDistribution(GLEAN_FILE_PER_RANK);
 
 
 
@@ -191,7 +191,8 @@ int main(int argc, char *argv[])
         }
         
         #ifdef INCLUDE
-        iotrace.Summary();
+        // iotrace.Summary();
+        tmio::iotrace_summary();
         // double x = iotrace.Get("aw", "t_end_act");
         // printf("x is %f",x);
         #endif

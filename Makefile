@@ -35,16 +35,20 @@ LDFLAGS     = $(MPI_LDFLAGS)
 override CXX_DEBUG  += 
 
 # Code flags
-PROCS = 8
-N     = 1000000
-MPI_RUN_FLAGS =
+PROCS = 4
+N     = 2000000
+MPI_RUN_FLAGS = --oversubscribe
 
 
 # TMIO Github location and code
-TMIO_REPO = /d/github/TMIO
+TMIO_REPO = /home/qba/20_PC_HiWi/01_TMIO/TMIO
+# TMIO_REPO = /home/qba/20_PC_HiWi/04_Origin_TMIO/TMIO
 TMIO_INC  = $(TMIO_REPO)/include
 TMIO_BLD  = $(TMIO_REPO)/build
 TMIO_DEP  = $(TMIO_REPO)/dep
+TMIO_LIB  = $(TMIO_BLD)/libtmio.so
+TMIO_OBJ_DIR    := $(TMIO_BLD)/tmp
+TMIO_OBJ_FILES := $(shell find $(TMIO_OBJ_DIR) -type f -name '*.o')
 LIBRARY_TARGET = library
 
 
@@ -89,14 +93,14 @@ run: sim_clean HACC_ASYNC_IO
 
 ## Run modifed HACC-IO with TMIO
 run_with_lib: sim_clean HACC_ASYNC_IO library
-	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+	LD_PRELOAD=$(TMIO_LIB) $(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
 run_msgpack: LIBRARY_TARGET := msgpack_library
 run_msgpack: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG) 
 run_msgpack: CXX_INCLUDE = -I$(TMIO_INC) 
 run_msgpack: CXX_MSGPACK = -I$(TMIO_DEP)/msgpack/msgpack-c/include
 run_msgpack: clean library $(HACC_IO_ASYNC_FILES)
-	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(wildcard $(TMIO_BLD)/tmp/*.o) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
+	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(TMIO_OBJ_FILES) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
 	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
 run_with_include: CXX_INCLUDE := -I$(TMIO_INC)
@@ -114,7 +118,7 @@ run_with_include2: clean library HACC_ASYNC_IO
 run_with_include_static: CXX_INCLUDE = -I$(TMIO_INC)
 run_with_include_static: override CXX_DEBUG := "-DINCLUDE=1 $(CXX_DEBUG)"
 run_with_include_static: clean library $(HACC_IO_ASYNC_FILES)
-	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(wildcard $(TMIO_BLD)/tmp/*.o) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
+	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(TMIO_OBJ_FILES) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
 	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
 ## Run HACC-IO with bandwidth limit. This needs modi
@@ -122,13 +126,13 @@ run_limit: override CXX_DEBUG := "-DBW_LIMIT $(CXX_DEBUG)"
 run_limit: override MPICXX := $(MODIFED_MPICXX)
 run_limit: override MPIRUN := $(MODIFED_MPIRUN)
 run_limit: info clean HACC_ASYNC_IO_BWLIMIT library
-	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
+	LD_PRELOAD=$(TMIO_LIB) $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
 
 run_nolimit: override CXX_DEBUG := "-DCUSTOM_MPI $(CXX_DEBUG)"
 run_nolimit: override MPICXX := $(MODIFED_MPICXX)
 run_nolimit: override MPIRUN := $(MODIFED_MPIRUN)
 run_nolimit:info clean HACC_ASYNC_IO_BWLIMIT library
-	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
+	LD_PRELOAD=$(TMIO_LIB) $(MPIRUN)  -np $(PROCS) ./HACC_ASYNC_IO_BWLIMIT $(N) test_run/mpi   
 
 info:
 	$(info $(shell tput setaf 1)HACC: testHACC_Async_IO_bwlimit.cxx $(shell tput sgr0))
@@ -297,7 +301,7 @@ darshan_clean:
 Memory_Overhead: M1 M2
 
 M1: sim_clean HACC_ASYNC_IO libtmio.so 
-	LD_PRELOAD=./libtmio.so  $(MPIRUN)  -np  $(PROCS)  valgrind  --tool=massif  ./HACC_ASYNC_IO 1000000 test_run/mpi
+	LD_PRELOAD=$(TMIO_LIB)  $(MPIRUN)  -np  $(PROCS)  valgrind  --tool=massif  ./HACC_ASYNC_IO 1000000 test_run/mpi
 	for i in massif.out.*; do mv $$i lib_on_$$i; done
 	
 M2: sim_clean HACC_ASYNC_IO
